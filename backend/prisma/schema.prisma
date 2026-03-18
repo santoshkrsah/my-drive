@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SYSADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  DELETED
+}
+
+model User {
+  id            Int          @id @default(autoincrement())
+  name          String
+  email         String       @unique
+  username      String       @unique
+  passwordHash  String
+  role          Role         @default(USER)
+  storageQuota  BigInt       @default(5368709120)
+  storageUsed   BigInt       @default(0)
+  status        UserStatus   @default(ACTIVE)
+  maxUploadSize     BigInt?
+  maxFilesPerUpload Int?
+  allowedExtensions String?   @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  files         File[]
+  folders       Folder[]
+  adminLogs     ActivityLog[] @relation("AdminLogs")
+  targetLogs    ActivityLog[] @relation("TargetLogs")
+  sharedByMe    FileShare[]  @relation("SharedByUser")
+  sharedWithMe  FileShare[]  @relation("SharedWithUser")
+  folderSharedByMe    FolderShare[] @relation("FolderSharedByUser")
+  folderSharedWithMe  FolderShare[] @relation("FolderSharedWithUser")
+  activities          UserActivity[]
+  notifications       Notification[]
+  userTags            Tag[]          @relation("UserTags")
+  scheduledDeletionAt DateTime?
+
+  @@map("users")
+}
+
+model File {
+  id            Int          @id @default(autoincrement())
+  userId        Int
+  fileName      String
+  originalName  String
+  filePath      String
+  fileSize      BigInt
+  mimeType      String
+  uploadDate    DateTime     @default(now())
+  isDeleted     Boolean      @default(false)
+  deletedAt     DateTime?
+  folderId      Int?
+  fileHash      String?
+  isStarred     Boolean      @default(false)
+  lastAccessedAt DateTime?
+  pendingPurge  Boolean      @default(false)
+  purgeAfter    DateTime?
+  adminViewed   Boolean      @default(false)
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder        Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  shares        FileShare[]
+  versions      FileVersion[]
+  publicLinks   PublicLink[]
+  fileTags      FileTag[]
+
+  @@index([userId])
+  @@index([folderId])
+  @@map("files")
+}
+
+model Folder {
+  id            Int          @id @default(autoincrement())
+  userId        Int
+  name          String
+  parentId      Int?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  isDeleted     Boolean      @default(false)
+  deletedAt     DateTime?
+  pendingPurge  Boolean      @default(false)
+  purgeAfter    DateTime?
+  adminViewed   Boolean      @default(false)
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Folder?      @relation("FolderTree", fields: [parentId], references: [id])
+  children      Folder[]     @relation("FolderTree")
+  files         File[]
+  shares        FolderShare[]
+
+  @@index([userId])
+  @@index([parentId])
+  @@map("folders")
+}
+
+model FileShare {
+  id               Int       @id @default(autoincrement())
+  fileId           Int
+  sharedByUserId   Int
+  sharedWithUserId Int
+  permission       String    @default("VIEW")
+  createdAt        DateTime  @default(now())
+
+  file             File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  sharedBy         User      @relation("SharedByUser", fields: [sharedByUserId], references: [id])
+  sharedWith       User      @relation("SharedWithUser", fields: [sharedWithUserId], references: [id])
+
+  @@unique([fileId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@map("file_shares")
+}
+
+model FileVersion {
+  id            Int          @id @default(autoincrement())
+  fileId        Int
+  versionNumber Int
+  fileName      String
+  filePath      String
+  fileSize      BigInt
+  uploadedAt    DateTime     @default(now())
+
+  file          File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@map("file_versions")
+}
+
+model ActivityLog {
+  id            Int          @id @default(autoincrement())
+  adminId       Int
+  actionType    String
+  targetUserId  Int?
+  details       String?      @db.Text
+  ipAddress     String?
+  timestamp     DateTime     @default(now())
+
+  admin         User         @relation("AdminLogs", fields: [adminId], references: [id])
+  targetUser    User?        @relation("TargetLogs", fields: [targetUserId], references: [id])
+
+  @@index([adminId])
+  @@index([targetUserId])
+  @@map("activity_logs")
+}
+
+model UserActivity {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  actionType   String
+  resourceType String
+  resourceId   Int?
+  resourceName String?
+  details      String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_activities")
+}
+
+model PublicLink {
+  id            Int          @id @default(autoincrement())
+  fileId        Int
+  token         String       @unique @default(uuid())
+  password      String?
+  expiresAt     DateTime?
+  downloadCount Int          @default(0)
+  maxDownloads  Int?
+  createdAt     DateTime     @default(now())
+
+  file          File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@map("public_links")
+}
+
+model FolderShare {
+  id               Int       @id @default(autoincrement())
+  folderId         Int
+  sharedByUserId   Int
+  sharedWithUserId Int
+  permission       String    @default("VIEW")
+  createdAt        DateTime  @default(now())
+
+  folder           Folder    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  sharedBy         User      @relation("FolderSharedByUser", fields: [sharedByUserId], references: [id])
+  sharedWith       User      @relation("FolderSharedWithUser", fields: [sharedWithUserId], references: [id])
+
+  @@unique([folderId, sharedWithUserId])
+  @@index([sharedWithUserId])
+  @@map("folder_shares")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String
+  color     String    @default("#3b82f6")
+  createdAt DateTime  @default(now())
+  userId    Int?
+  user      User?     @relation("UserTags", fields: [userId], references: [id], onDelete: Cascade)
+
+  fileTags  FileTag[]
+
+  @@unique([name, userId])
+  @@map("tags")
+}
+
+model FileTag {
+  fileId Int
+  tagId  Int
+
+  file   File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([fileId, tagId])
+  @@map("file_tags")
+}
