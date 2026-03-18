@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const folder_controller_1 = require("../controllers/folder.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.requireAuth);
+router.post('/', folder_controller_1.FolderController.create);
+router.get('/', folder_controller_1.FolderController.list);
+router.get('/all', folder_controller_1.FolderController.allFolders);
+router.get('/trash', folder_controller_1.FolderController.trash);
+router.post('/bulk-delete', folder_controller_1.FolderController.bulkDelete);
+router.get('/:id/breadcrumb', folder_controller_1.FolderController.breadcrumb);
+router.get('/:id/trash-contents', folder_controller_1.FolderController.trashContents);
+router.put('/:id', folder_controller_1.FolderController.rename);
+router.put('/:id/move', folder_controller_1.FolderController.move);
+router.post('/:id/restore', folder_controller_1.FolderController.restore);
+router.delete('/:id/permanent', folder_controller_1.FolderController.permanentDelete);
+router.delete('/:id', folder_controller_1.FolderController.remove);
+exports.default = router;
+//# sourceMappingURL=folder.routes.js.map

@@ -1,0 +1,37 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const file_controller_1 = require("../controllers/file.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const upload_middleware_1 = require("../middleware/upload.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.requireAuth);
+router.get('/', file_controller_1.FileController.list);
+router.post('/upload', upload_middleware_1.upload.array('files', 50), upload_middleware_1.validateUploadLimits, file_controller_1.FileController.upload);
+// Folder upload: skip the per-upload file count limit — folders can contain hundreds of files
+router.post('/upload-folder', upload_middleware_1.upload.array('files', 500), file_controller_1.FileController.uploadFolder);
+router.get('/storage', file_controller_1.FileController.storage);
+router.get('/trash', file_controller_1.FileController.trash);
+router.get('/search', file_controller_1.FileController.search);
+router.get('/check-duplicate', file_controller_1.FileController.checkDuplicate);
+router.get('/duplicates', file_controller_1.FileController.getDuplicates);
+router.post('/bulk-delete', file_controller_1.FileController.bulkDelete);
+router.post('/bulk-move', file_controller_1.FileController.bulkMove);
+router.post('/bulk-download', file_controller_1.FileController.bulkDownload);
+router.post('/delete-all', file_controller_1.FileController.deleteAll);
+router.post('/empty-trash', file_controller_1.FileController.emptyTrash);
+router.get('/recent', file_controller_1.FileController.recent);
+router.get('/starred', file_controller_1.FileController.starred);
+router.get('/dashboard', file_controller_1.FileController.dashboard);
+router.put('/:id/star', file_controller_1.FileController.toggleStar);
+router.get('/:id/download', file_controller_1.FileController.download);
+router.get('/:id/preview', file_controller_1.FileController.preview);
+router.get('/:id/office-preview', file_controller_1.FileController.officePreview);
+router.get('/:id/access-log', file_controller_1.FileController.accessLog);
+router.put('/:id/rename', file_controller_1.FileController.rename);
+router.put('/:id/move', file_controller_1.FileController.move);
+router.delete('/:id', file_controller_1.FileController.softDelete);
+router.delete('/:id/permanent', file_controller_1.FileController.permanentDelete);
+router.post('/:id/restore', file_controller_1.FileController.restore);
+exports.default = router;
+//# sourceMappingURL=file.routes.js.map
